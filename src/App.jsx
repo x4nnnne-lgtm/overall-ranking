@@ -1,145 +1,342 @@
 import { useEffect, useMemo, useState } from "react";
 import "./App.css";
 
-/* =========================
-   ADMIN LOGIN
-========================= */
-
 const ADMIN_ID = "admin";
 const ADMIN_PASSWORD = "admin123";
-
-/* =========================
-   SAMPLE STUDENTS
-========================= */
 
 const initialStudents = [
   {
     id: 1,
     name: "Charles Estacio",
     course: "BSIT",
-    grade: 95.67,
+    photo: "",
+    subjects: [
+      { name: "Web Development", grade: 96.2 },
+      { name: "Database Management", grade: 95.14 },
+    ],
   },
   {
     id: 2,
     name: "Zeus Laron",
     course: "BSIT",
-    grade: 94.82,
+    photo: "",
+    subjects: [
+      { name: "Web Development", grade: 95.1 },
+      { name: "Database Management", grade: 94.54 },
+    ],
   },
   {
     id: 3,
     name: "Ian Ballesteros",
     course: "BSIT",
-    grade: 93.45,
+    photo: "",
+    subjects: [
+      { name: "Programming", grade: 93.9 },
+      { name: "Networking", grade: 93 },
+    ],
   },
   {
     id: 4,
     name: "Clarisse Mendoza",
     course: "BSHM",
-    grade: 91.2,
+    photo: "",
+    subjects: [
+      { name: "Food Service Management", grade: 92 },
+      { name: "Hospitality Operations", grade: 90.4 },
+    ],
   },
   {
     id: 5,
     name: "Abigail Santos",
     course: "Tourism",
-    grade: 89.75,
+    photo: "",
+    subjects: [
+      { name: "Tourism Management", grade: 90.25 },
+      { name: "Travel Operations", grade: 89.25 },
+    ],
   },
   {
     id: 6,
-    name: "Claire Reyes",
+    name: "Clara Reyes",
     course: "BSCRIM",
-    grade: 88.9,
+    photo: "",
+    subjects: [
+      { name: "Criminal Law", grade: 89.3 },
+      { name: "Criminology", grade: 88.5 },
+    ],
   },
   {
     id: 7,
     name: "Mark Anthony Cruz",
     course: "BSBA",
-    grade: 87.8,
+    photo: "",
+    subjects: [
+      { name: "Business Management", grade: 88.2 },
+      { name: "Marketing", grade: 87.4 },
+    ],
   },
   {
     id: 8,
     name: "Sofia Garcia",
     course: "BSED",
-    grade: 86.95,
+    photo: "",
+    subjects: [
+      { name: "Teaching Profession", grade: 87.6 },
+      { name: "Educational Psychology", grade: 86.3 },
+    ],
   },
 ];
-
-/* =========================
-   SAMPLE PROFESSORS
-========================= */
 
 const initialProfessors = [
   {
     id: 1,
-    name: "Ivan Jade Surat",
+    name: "Dr. Maria Santos",
     department: "Information Technology",
-    courses: "BSIT",
-    email: "ivanjade@school.edu",
+    course: "BSIT",
+    email: "maria.santos@school.edu",
   },
   {
     id: 2,
     name: "Prof. John Reyes",
     department: "Business Administration",
-    courses: "BSBA",
+    course: "BSBA",
     email: "john.reyes@school.edu",
   },
   {
     id: 3,
     name: "Prof. Angela Cruz",
     department: "Hospitality Management",
-    courses: "BSHM",
+    course: "BSHM",
     email: "angela.cruz@school.edu",
   },
   {
     id: 4,
     name: "Dr. Roberto Garcia",
     department: "Criminology",
-    courses: "BSCRIM",
+    course: "BSCRIM",
     email: "roberto.garcia@school.edu",
   },
   {
     id: 5,
     name: "Prof. Elena Torres",
     department: "Education",
-    courses: "BSED",
+    course: "BSED",
     email: "elena.torres@school.edu",
   },
   {
     id: 6,
     name: "Prof. Daniel Mendoza",
     department: "Tourism Management",
-    courses: "Tourism",
+    course: "Tourism",
     email: "daniel.mendoza@school.edu",
   },
 ];
 
-/* =========================
-   HELPERS
-========================= */
-
-function getInitials(name) {
+function getInitials(name = "") {
   return name
     .split(" ")
-    .map((word) => word[0])
-    .join("")
+    .filter(Boolean)
     .slice(0, 2)
+    .map((part) => part[0])
+    .join("")
     .toUpperCase();
 }
 
-function formatGrade(grade) {
-  return Number(grade).toFixed(2);
+function calculateAverage(subjects = []) {
+  const validSubjects = subjects.filter(
+    (subject) =>
+      subject.name?.trim() !== "" &&
+      subject.grade !== "" &&
+      !Number.isNaN(Number(subject.grade))
+  );
+
+  if (!validSubjects.length) return 0;
+
+  const total = validSubjects.reduce(
+    (sum, subject) => sum + Number(subject.grade),
+    0
+  );
+
+  return total / validSubjects.length;
 }
 
-/* =========================
-   APP
-========================= */
+function formatGrade(value) {
+  return Number(value || 0).toFixed(2);
+}
 
-export default function App() {
+function normalizeStudent(student) {
+  if (Array.isArray(student.subjects)) {
+    return {
+      ...student,
+      subjects: student.subjects.map((subject) => ({
+        name: subject.name || "",
+        grade:
+          subject.grade === "" || subject.grade === undefined
+            ? ""
+            : Number(subject.grade),
+      })),
+    };
+  }
+
+  // Supports students from the previous version of the app.
+  return {
+    ...student,
+    photo: student.photo || "",
+    subjects: [],
+  };
+}
+
+function compressImage(file) {
+  return new Promise((resolve, reject) => {
+    if (!file) {
+      resolve("");
+      return;
+    }
+
+    const reader = new FileReader();
+
+    reader.onload = (event) => {
+      const img = new Image();
+
+      img.onload = () => {
+        const maxSize = 500;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height && width > maxSize) {
+          height = (height / width) * maxSize;
+          width = maxSize;
+        } else if (height > maxSize) {
+          width = (width / height) * maxSize;
+          height = maxSize;
+        }
+
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, width, height);
+
+        resolve(canvas.toDataURL("image/jpeg", 0.72));
+      };
+
+      img.onerror = reject;
+      img.src = event.target.result;
+    };
+
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+function Avatar({ student, size = "medium" }) {
+  return (
+    <div className={`avatar avatar-${size}`}>
+      {student.photo ? (
+        <img src={student.photo} alt={student.name} />
+      ) : (
+        <span>{getInitials(student.name)}</span>
+      )}
+    </div>
+  );
+}
+
+function PodiumCard({ student, position, onClick }) {
+  const medals = ["🥇", "🥈", "🥉"];
+
+  return (
+    <button
+      className={`podium-card podium-${position}`}
+      onClick={() => onClick(student)}
+    >
+      <div className="podium-medal">{medals[position - 1]}</div>
+
+      <Avatar student={student} size="large" />
+
+      <div className="podium-rank">#{position}</div>
+
+      <h3>{student.name}</h3>
+      <span>{student.course}</span>
+
+      <strong>{formatGrade(calculateAverage(student.subjects))}</strong>
+
+      <small>Click to view grades</small>
+    </button>
+  );
+}
+
+function RankingRow({
+  student,
+  onClick,
+  isAdmin,
+  onEdit,
+  onDelete,
+}) {
+  const average = calculateAverage(student.subjects);
+
+  return (
+    <div
+      className="ranking-row"
+      onClick={() => onClick(student)}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(event) => {
+        if (event.key === "Enter") onClick(student);
+      }}
+    >
+      <div className="rank-number">#{student.rank}</div>
+
+      <Avatar student={student} />
+
+      <div className="student-info">
+        <strong>{student.name}</strong>
+        <span>{student.course}</span>
+      </div>
+
+      <div className="subject-count">
+        <span>{student.subjects.length}</span>
+        <small>Subjects</small>
+      </div>
+
+      <div className="average-score">
+        <strong>{formatGrade(average)}</strong>
+        <span>Overall</span>
+      </div>
+
+      {isAdmin && (
+        <div
+          className="row-actions"
+          onClick={(event) => event.stopPropagation()}
+        >
+          <button
+            className="icon-button edit"
+            onClick={() => onEdit(student)}
+            title="Edit student"
+          >
+            ✏️
+          </button>
+
+          <button
+            className="icon-button delete"
+            onClick={() => onDelete(student.id)}
+            title="Delete student"
+          >
+            🗑️
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function App() {
   const [students, setStudents] = useState(() => {
-    const saved = localStorage.getItem("rankingStudents");
+    const saved = localStorage.getItem("rankingStudentsV2");
 
     if (saved) {
       try {
-        return JSON.parse(saved);
+        return JSON.parse(saved).map(normalizeStudent);
       } catch {
         return initialStudents;
       }
@@ -148,7 +345,7 @@ export default function App() {
     return initialStudents;
   });
 
-  const [professors] = useState(() => {
+  const [professors, setProfessors] = useState(() => {
     const saved = localStorage.getItem("rankingProfessors");
 
     if (saved) {
@@ -187,67 +384,53 @@ export default function App() {
   const [loginError, setLoginError] = useState("");
 
   const [activePage, setActivePage] = useState("rankings");
-
   const [search, setSearch] = useState("");
-  const [courseFilter, setCourseFilter] = useState("All Courses");
+  const [courseFilter, setCourseFilter] = useState("All");
 
   const [modalOpen, setModalOpen] = useState(false);
+  const [detailsStudent, setDetailsStudent] = useState(null);
   const [editingStudent, setEditingStudent] = useState(null);
 
   const [studentForm, setStudentForm] = useState({
     name: "",
     course: "",
-    grade: "",
+    photo: "",
+    subjects: [{ name: "", grade: "" }],
   });
 
-  /* =========================
-     SAVE STUDENTS
-  ========================= */
-
   useEffect(() => {
-    localStorage.setItem("rankingStudents", JSON.stringify(students));
+    localStorage.setItem("rankingStudentsV2", JSON.stringify(students));
   }, [students]);
 
-  /* =========================
-     SAVE PROFESSORS
-  ========================= */
-
   useEffect(() => {
-    localStorage.setItem(
-      "rankingProfessors",
-      JSON.stringify(professors)
-    );
+    localStorage.setItem("rankingProfessors", JSON.stringify(professors));
   }, [professors]);
 
-  /* =========================
-     COURSES
-  ========================= */
+  useEffect(() => {
+    if (user) {
+      localStorage.setItem("rankingUser", JSON.stringify(user));
+    } else {
+      localStorage.removeItem("rankingUser");
+    }
+  }, [user]);
 
   const courses = useMemo(() => {
-    return [
-      "All Courses",
-      ...Array.from(new Set(students.map((student) => student.course))),
-    ];
+    return [...new Set(students.map((student) => student.course))].sort();
   }, [students]);
-
-  /* =========================
-     RANKING
-  ========================= */
 
   const rankedStudents = useMemo(() => {
     return students
-      .filter((student) => {
-        const matchesSearch = student.name
-          .toLowerCase()
-          .includes(search.toLowerCase());
-
-        const matchesCourse =
-          courseFilter === "All Courses" ||
-          student.course === courseFilter;
-
-        return matchesSearch && matchesCourse;
-      })
-      .sort((a, b) => Number(b.grade) - Number(a.grade))
+      .filter((student) =>
+        student.name.toLowerCase().includes(search.toLowerCase())
+      )
+      .filter(
+        (student) =>
+          courseFilter === "All" || student.course === courseFilter
+      )
+      .sort(
+        (a, b) =>
+          calculateAverage(b.subjects) - calculateAverage(a.subjects)
+      )
       .map((student, index) => ({
         ...student,
         rank: index + 1,
@@ -255,34 +438,37 @@ export default function App() {
   }, [students, search, courseFilter]);
 
   const topThree = rankedStudents.slice(0, 3);
+
   const remainingStudents = rankedStudents.slice(3);
 
-  /* =========================
-     LOGIN
-  ========================= */
+  const overallAverage = useMemo(() => {
+    if (!students.length) return 0;
 
-  function handleLogin(e) {
-    e.preventDefault();
+    const total = students.reduce(
+      (sum, student) => sum + calculateAverage(student.subjects),
+      0
+    );
 
+    return total / students.length;
+  }, [students]);
+
+  function handleLogin(event) {
+    event.preventDefault();
     setLoginError("");
 
     if (loginMode === "admin") {
       if (
-        loginForm.adminId.trim() === ADMIN_ID &&
+        loginForm.adminId === ADMIN_ID &&
         loginForm.password === ADMIN_PASSWORD
       ) {
-        const adminUser = {
+        setUser({
           role: "admin",
           name: "Administrator",
-        };
-
-        setUser(adminUser);
-        localStorage.setItem("rankingUser", JSON.stringify(adminUser));
-        setActivePage("rankings");
+        });
         return;
       }
 
-      setLoginError("Incorrect admin ID or password.");
+      setLoginError("Invalid administrator ID or password.");
       return;
     }
 
@@ -291,39 +477,21 @@ export default function App() {
       return;
     }
 
-    const studentUser = {
+    setUser({
       role: "student",
       name: loginForm.name.trim(),
-    };
-
-    setUser(studentUser);
-    localStorage.setItem("rankingUser", JSON.stringify(studentUser));
-    setActivePage("rankings");
+    });
   }
-
-  /* =========================
-     LOGOUT
-  ========================= */
 
   function handleLogout() {
     setUser(null);
-    localStorage.removeItem("rankingUser");
-
+    setActivePage("rankings");
     setLoginForm({
       name: "",
       adminId: "",
       password: "",
     });
-
-    setLoginError("");
-    setSearch("");
-    setCourseFilter("All Courses");
-    setActivePage("rankings");
   }
-
-  /* =========================
-     OPEN ADD MODAL
-  ========================= */
 
   function openAddStudent() {
     setEditingStudent(null);
@@ -331,15 +499,12 @@ export default function App() {
     setStudentForm({
       name: "",
       course: "",
-      grade: "",
+      photo: "",
+      subjects: [{ name: "", grade: "" }],
     });
 
     setModalOpen(true);
   }
-
-  /* =========================
-     OPEN EDIT MODAL
-  ========================= */
 
   function openEditStudent(student) {
     setEditingStudent(student);
@@ -347,64 +512,151 @@ export default function App() {
     setStudentForm({
       name: student.name,
       course: student.course,
-      grade: student.grade,
+      photo: student.photo || "",
+      subjects:
+        student.subjects.length > 0
+          ? student.subjects.map((subject) => ({
+              name: subject.name,
+              grade: subject.grade,
+            }))
+          : [{ name: "", grade: "" }],
     });
 
     setModalOpen(true);
   }
 
-  /* =========================
-     SAVE STUDENT
-  ========================= */
+  function closeStudentModal() {
+    setModalOpen(false);
+    setEditingStudent(null);
+  }
 
-  function handleSaveStudent(e) {
-    e.preventDefault();
+  function addSubject() {
+    setStudentForm((previous) => ({
+      ...previous,
+      subjects: [
+        ...previous.subjects,
+        {
+          name: "",
+          grade: "",
+        },
+      ],
+    }));
+  }
 
-    if (
-      !studentForm.name.trim() ||
-      !studentForm.course.trim() ||
-      studentForm.grade === ""
-    ) {
+  function removeSubject(index) {
+    setStudentForm((previous) => {
+      if (previous.subjects.length === 1) return previous;
+
+      return {
+        ...previous,
+        subjects: previous.subjects.filter((_, subjectIndex) => {
+          return subjectIndex !== index;
+        }),
+      };
+    });
+  }
+
+  function updateSubject(index, field, value) {
+    setStudentForm((previous) => ({
+      ...previous,
+      subjects: previous.subjects.map((subject, subjectIndex) =>
+        subjectIndex === index
+          ? {
+              ...subject,
+              [field]: value,
+            }
+          : subject
+      ),
+    }));
+  }
+
+  async function handlePhotoChange(event) {
+    const file = event.target.files?.[0];
+
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      alert("Please select an image file.");
       return;
     }
 
-    const grade = Number(studentForm.grade);
+    try {
+      const compressed = await compressImage(file);
 
-    if (grade < 0 || grade > 100) {
-      alert("Grade must be between 0 and 100.");
+      setStudentForm((previous) => ({
+        ...previous,
+        photo: compressed,
+      }));
+    } catch {
+      alert("Unable to process the selected image.");
+    }
+  }
+
+  function handleSaveStudent(event) {
+    event.preventDefault();
+
+    const name = studentForm.name.trim();
+    const course = studentForm.course.trim();
+
+    const cleanedSubjects = studentForm.subjects
+      .map((subject) => ({
+        name: subject.name.trim(),
+        grade: Number(subject.grade),
+      }))
+      .filter((subject) => subject.name !== "");
+
+    if (!name || !course) {
+      alert("Please enter the student's name and course.");
       return;
     }
+
+    if (!cleanedSubjects.length) {
+      alert("Please add at least one subject.");
+      return;
+    }
+
+    const invalidGrade = cleanedSubjects.some(
+      (subject) =>
+        Number.isNaN(subject.grade) ||
+        subject.grade < 0 ||
+        subject.grade > 100
+    );
+
+    if (invalidGrade) {
+      alert("Grades must be between 0 and 100.");
+      return;
+    }
+
+    const studentData = {
+      name,
+      course,
+      photo: studentForm.photo,
+      subjects: cleanedSubjects,
+    };
 
     if (editingStudent) {
-      setStudents((current) =>
-        current.map((student) =>
+      setStudents((previous) =>
+        previous.map((student) =>
           student.id === editingStudent.id
             ? {
                 ...student,
-                name: studentForm.name.trim(),
-                course: studentForm.course.trim(),
-                grade,
+                ...studentData,
               }
             : student
         )
       );
     } else {
-      const newStudent = {
-        id: Date.now(),
-        name: studentForm.name.trim(),
-        course: studentForm.course.trim(),
-        grade,
-      };
-
-      setStudents((current) => [...current, newStudent]);
+      setStudents((previous) => [
+        ...previous,
+        {
+          id: Date.now(),
+          ...studentData,
+        },
+      ]);
     }
 
-    setModalOpen(false);
+    closeStudentModal();
   }
-
-  /* =========================
-     DELETE STUDENT
-  ========================= */
 
   function deleteStudent(id) {
     const student = students.find((item) => item.id === id);
@@ -412,215 +664,181 @@ export default function App() {
     if (!student) return;
 
     const confirmed = window.confirm(
-      `Delete ${student.name} from the rankings?`
+      `Delete ${student.name} from the ranking?`
     );
 
     if (!confirmed) return;
 
-    setStudents((current) =>
-      current.filter((student) => student.id !== id)
+    setStudents((previous) =>
+      previous.filter((studentItem) => studentItem.id !== id)
     );
+
+    if (detailsStudent?.id === id) {
+      setDetailsStudent(null);
+    }
   }
 
-  /* =========================
-     LOGIN SCREEN
-  ========================= */
+  function resetSampleData() {
+    const confirmed = window.confirm(
+      "Reset the ranking to the sample student data?"
+    );
+
+    if (!confirmed) return;
+
+    setStudents(initialStudents);
+    setSearch("");
+    setCourseFilter("All");
+  }
 
   if (!user) {
     return (
       <div className="login-page">
-        <div className="login-background-circle circle-one"></div>
-        <div className="login-background-circle circle-two"></div>
+        <div className="login-decoration decoration-one"></div>
+        <div className="login-decoration decoration-two"></div>
 
-        <div className="login-container">
-          <div className="login-brand">
-            <div className="brand-logo">
-              <span>R</span>
-            </div>
-
-            <div>
-              <h1>PCLU RANKINGS</h1>
-              <p>Academic Ranking System</p>
-            </div>
+        <div className="login-card">
+          <div className="brand-logo">
+            <div className="brand-icon">R</div>
+            <span>Rankly</span>
           </div>
 
-          <div className="login-card">
-            <div className="login-heading">
-              <h2>Welcome Back</h2>
-              <p>
-                Sign in to access the academic ranking system.
-              </p>
-            </div>
-
-            <div className="login-tabs">
-              <button
-                type="button"
-                className={
-                  loginMode === "student" ? "active" : ""
-                }
-                onClick={() => {
-                  setLoginMode("student");
-                  setLoginError("");
-                }}
-              >
-                <span>🎓</span>
-                Student
-              </button>
-
-              <button
-                type="button"
-                className={
-                  loginMode === "admin" ? "active" : ""
-                }
-                onClick={() => {
-                  setLoginMode("admin");
-                  setLoginError("");
-                }}
-              >
-                <span>🔐</span>
-                Admin
-              </button>
-            </div>
-
-            <form onSubmit={handleLogin}>
-              {loginMode === "student" ? (
-                <>
-                  <label>Your Name</label>
-
-                  <div className="input-wrapper">
-                    <span>👤</span>
-
-                    <input
-                      type="text"
-                      placeholder="Enter your full name"
-                      value={loginForm.name}
-                      onChange={(e) =>
-                        setLoginForm({
-                          ...loginForm,
-                          name: e.target.value,
-                        })
-                      }
-                    />
-                  </div>
-                </>
-              ) : (
-                <>
-                  <label>Admin ID</label>
-
-                  <div className="input-wrapper">
-                    <span>👤</span>
-
-                    <input
-                      type="text"
-                      placeholder="Enter admin ID"
-                      value={loginForm.adminId}
-                      onChange={(e) =>
-                        setLoginForm({
-                          ...loginForm,
-                          adminId: e.target.value,
-                        })
-                      }
-                    />
-
-                  </div>
-
-                  <label>Password</label>
-
-                  <div className="input-wrapper">
-                    <span>🔒</span>
-
-                    <input
-                      type="password"
-                      placeholder="Enter password"
-                      value={loginForm.password}
-                      onChange={(e) =>
-                        setLoginForm({
-                          ...loginForm,
-                          password: e.target.value,
-                        })
-                      }
-                    />
-                  </div>
-                </>
-              )}
-
-              {loginError && (
-                <div className="login-error">
-                  ⚠ {loginError}
-                </div>
-              )}
-
-              <button className="login-button" type="submit">
-                Continue
-                <span>→</span>
-              </button>
-            </form>
-
-            <div className="login-footer">
-              <span>🔒</span>
-              Secure academic ranking access
-            </div>
+          <div className="login-heading">
+            <p className="eyebrow">OVERALL RANKING SYSTEM</p>
+            <h1>Welcome back.</h1>
+            <p>
+              View student rankings, subject performance, and academic
+              standings in one place.
+            </p>
           </div>
 
-          <p className="copyright">
-            © 2026 PCLU • Academic Ranking System
-          </p>
+          <div className="login-tabs">
+            <button
+              className={loginMode === "student" ? "active" : ""}
+              onClick={() => {
+                setLoginMode("student");
+                setLoginError("");
+              }}
+            >
+              Student
+            </button>
+
+            <button
+              className={loginMode === "admin" ? "active" : ""}
+              onClick={() => {
+                setLoginMode("admin");
+                setLoginError("");
+              }}
+            >
+              Administrator
+            </button>
+          </div>
+
+          <form onSubmit={handleLogin} className="login-form">
+            {loginMode === "student" ? (
+              <>
+                <label>Your name</label>
+                <input
+                  type="text"
+                  placeholder="Enter your name"
+                  value={loginForm.name}
+                  onChange={(event) =>
+                    setLoginForm({
+                      ...loginForm,
+                      name: event.target.value,
+                    })
+                  }
+                />
+              </>
+            ) : (
+              <>
+                <label>Administrator ID</label>
+                <input
+                  type="text"
+                  placeholder="Enter admin ID"
+                  value={loginForm.adminId}
+                  onChange={(event) =>
+                    setLoginForm({
+                      ...loginForm,
+                      adminId: event.target.value,
+                    })
+                  }
+                />
+
+                <label>Password</label>
+                <input
+                  type="password"
+                  placeholder="Enter password"
+                  value={loginForm.password}
+                  onChange={(event) =>
+                    setLoginForm({
+                      ...loginForm,
+                      password: event.target.value,
+                    })
+                  }
+                />
+              </>
+            )}
+
+            {loginError && <div className="login-error">{loginError}</div>}
+
+            <button className="login-button" type="submit">
+              Continue
+              <span>→</span>
+            </button>
+          </form>
+
+          {loginMode === "admin" && (
+            <div className="login-hint">
+              Demo administrator: <strong>admin</strong> /{" "}
+              <strong>admin123</strong>
+            </div>
+          )}
+
+          <div className="login-footer">
+            <span>Academic Ranking Platform</span>
+            <span>•</span>
+            <span>School Presentation</span>
+          </div>
         </div>
       </div>
     );
   }
 
-  /* =========================
-     MAIN APPLICATION
-  ========================= */
-
   return (
     <div className="app">
       <header className="topbar">
-        <div className="topbar-left">
-          <div className="app-logo">
-            <span>R</span>
+        <div className="topbar-inner">
+          <div className="brand">
+            <div className="brand-icon">R</div>
+            <div>
+              <strong>Rankly</strong>
+              <span>Overall Ranking System</span>
+            </div>
           </div>
 
-          <div>
-            <h1>PCLU RANKINGS</h1>
-            <p>Academic Ranking System</p>
-          </div>
-        </div>
-
-        <div className="topbar-right">
-          <div className="logged-user">
-            <div className="avatar">
+          <div className="user-area">
+            <div className="user-avatar">
               {getInitials(user.name)}
             </div>
 
-            <div className="logged-user-info">
+            <div className="user-text">
               <strong>{user.name}</strong>
               <span>
-                {user.role === "admin"
-                  ? "Administrator"
-                  : "Student"}
+                {user.role === "admin" ? "Administrator" : "Student"}
               </span>
             </div>
-          </div>
 
-          <button
-            className="logout-button"
-            onClick={handleLogout}
-          >
-            Logout
-          </button>
+            <button className="logout-button" onClick={handleLogout}>
+              Logout
+            </button>
+          </div>
         </div>
       </header>
 
-      <main className="main-content">
-        <div className="page-navigation">
+      <nav className="navigation">
+        <div className="navigation-inner">
           <button
-            className={
-              activePage === "rankings"
-                ? "nav-button active"
-                : "nav-button"
-            }
+            className={activePage === "rankings" ? "active" : ""}
             onClick={() => setActivePage("rankings")}
           >
             <span>🏆</span>
@@ -628,57 +846,51 @@ export default function App() {
           </button>
 
           <button
-            className={
-              activePage === "professors"
-                ? "nav-button active"
-                : "nav-button"
-            }
+            className={activePage === "professors" ? "active" : ""}
             onClick={() => setActivePage("professors")}
           >
             <span>👨‍🏫</span>
             Professors
           </button>
         </div>
+      </nav>
 
+      <main className="main-content">
         {activePage === "rankings" ? (
           <>
-            {/* =========================
-                RANKING HEADER
-            ========================= */}
-
             <section className="page-header">
               <div>
-                <span className="section-label">
-                  ACADEMIC PERFORMANCE
-                </span>
-
-                <h2>Overall Rankings</h2>
-
+                <p className="eyebrow">ACADEMIC PERFORMANCE</p>
+                <h1>Overall Student Rankings</h1>
                 <p>
-                  View the highest-performing students based
-                  on their overall grade.
+                  Rankings are automatically calculated from each student's
+                  subject grades.
                 </p>
               </div>
 
               {user.role === "admin" && (
-                <button
-                  className="primary-button"
-                  onClick={openAddStudent}
-                >
-                  <span>＋</span>
-                  Add Student
-                </button>
+                <div className="header-actions">
+                  <button
+                    className="secondary-button"
+                    onClick={resetSampleData}
+                  >
+                    Reset Sample
+                  </button>
+
+                  <button
+                    className="primary-button"
+                    onClick={openAddStudent}
+                  >
+                    <span>＋</span>
+                    Add Student
+                  </button>
+                </div>
               )}
             </section>
-
-            {/* =========================
-                STAT CARDS
-            ========================= */}
 
             <section className="stats-grid">
               <div className="stat-card">
                 <div className="stat-icon purple">👥</div>
-
                 <div>
                   <span>Total Students</span>
                   <strong>{students.length}</strong>
@@ -687,15 +899,14 @@ export default function App() {
 
               <div className="stat-card">
                 <div className="stat-icon gold">🏆</div>
-
                 <div>
-                  <span>Highest Grade</span>
+                  <span>Highest Average</span>
                   <strong>
                     {students.length
                       ? formatGrade(
                           Math.max(
-                            ...students.map((s) =>
-                              Number(s.grade)
+                            ...students.map((student) =>
+                              calculateAverage(student.subjects)
                             )
                           )
                         )
@@ -705,83 +916,61 @@ export default function App() {
               </div>
 
               <div className="stat-card">
-                <div className="stat-icon blue">🎓</div>
-
+                <div className="stat-icon blue">📚</div>
                 <div>
                   <span>Courses</span>
-                  <strong>{courses.length - 1}</strong>
+                  <strong>{courses.length}</strong>
                 </div>
               </div>
 
               <div className="stat-card">
-                <div className="stat-icon green">⭐</div>
-
+                <div className="stat-icon green">📈</div>
                 <div>
-                  <span>Top Student</span>
-                  <strong className="small-stat">
-                    {students.length
-                      ? [...students].sort(
-                          (a, b) =>
-                            Number(b.grade) -
-                            Number(a.grade)
-                        )[0].name
-                      : "None"}
-                  </strong>
+                  <span>School Average</span>
+                  <strong>{formatGrade(overallAverage)}</strong>
                 </div>
               </div>
             </section>
 
-            {/* =========================
-                SEARCH / FILTER
-            ========================= */}
+            <section className="ranking-section">
+              <div className="section-header">
+                <div>
+                  <h2>Student Performance</h2>
+                  <p>Click a student to view their subject breakdown.</p>
+                </div>
 
-            <section className="controls-card">
-              <div className="search-box">
-                <span>⌕</span>
-
-                <input
-                  type="text"
-                  placeholder="Search student name..."
-                  value={search}
-                  onChange={(e) =>
-                    setSearch(e.target.value)
-                  }
-                />
-              </div>
-
-              <select
-                value={courseFilter}
-                onChange={(e) =>
-                  setCourseFilter(e.target.value)
-                }
-              >
-                {courses.map((course) => (
-                  <option key={course}>{course}</option>
-                ))}
-              </select>
-            </section>
-
-            {/* =========================
-                PODIUM
-            ========================= */}
-
-            {topThree.length > 0 && (
-              <section className="podium-section">
-                <div className="section-title">
-                  <div>
-                    <span className="section-label">
-                      LEADING PERFORMERS
-                    </span>
-
-                    <h3>Top Students</h3>
+                <div className="ranking-controls">
+                  <div className="search-box">
+                    <span>⌕</span>
+                    <input
+                      type="text"
+                      placeholder="Search student..."
+                      value={search}
+                      onChange={(event) => setSearch(event.target.value)}
+                    />
                   </div>
-                </div>
 
+                  <select
+                    value={courseFilter}
+                    onChange={(event) => setCourseFilter(event.target.value)}
+                  >
+                    <option value="All">All Courses</option>
+                    {courses.map((course) => (
+                      <option key={course} value={course}>
+                        {course}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {topThree.length > 0 ? (
                 <div className="podium">
                   {topThree[1] && (
                     <PodiumCard
                       student={topThree[1]}
                       position={2}
+                      onClick={setDetailsStudent}
                     />
                   )}
 
@@ -789,6 +978,7 @@ export default function App() {
                     <PodiumCard
                       student={topThree[0]}
                       position={1}
+                      onClick={setDetailsStudent}
                     />
                   )}
 
@@ -796,236 +986,365 @@ export default function App() {
                     <PodiumCard
                       student={topThree[2]}
                       position={3}
+                      onClick={setDetailsStudent}
                     />
                   )}
                 </div>
-              </section>
-            )}
-
-            {/* =========================
-                RANKING TABLE
-            ========================= */}
-
-            <section className="ranking-card">
-              <div className="ranking-card-header">
-                <div>
-                  <span className="section-label">
-                    COMPLETE LIST
-                  </span>
-
-                  <h3>Student Rankings</h3>
-                </div>
-
-                <span className="result-count">
-                  {rankedStudents.length} student
-                  {rankedStudents.length !== 1 ? "s" : ""}
-                </span>
-              </div>
-
-              {rankedStudents.length === 0 ? (
-                <div className="empty-state">
-                  <div>🔍</div>
-                  <h3>No students found</h3>
-                  <p>
-                    Try changing your search or course filter.
-                  </p>
-                </div>
               ) : (
+                <div className="empty-state">
+                  <div>🔎</div>
+                  <h3>No students found</h3>
+                  <p>Try changing your search or course filter.</p>
+                </div>
+              )}
+
+              {remainingStudents.length > 0 && (
                 <div className="ranking-list">
+                  <div className="list-heading">
+                    <span>RANK</span>
+                    <span>STUDENT</span>
+                    <span>SUBJECTS</span>
+                    <span>OVERALL</span>
+                    {user.role === "admin" && <span>ACTIONS</span>}
+                  </div>
+
                   {remainingStudents.map((student) => (
                     <RankingRow
                       key={student.id}
                       student={student}
-                      user={user}
+                      onClick={setDetailsStudent}
+                      isAdmin={user.role === "admin"}
                       onEdit={openEditStudent}
                       onDelete={deleteStudent}
                     />
                   ))}
-
-                  {rankedStudents.length <= 3 &&
-                    topThree.map((student) => (
-                      <RankingRow
-                        key={`top-${student.id}`}
-                        student={student}
-                        user={user}
-                        onEdit={openEditStudent}
-                        onDelete={deleteStudent}
-                      />
-                    ))}
                 </div>
               )}
             </section>
           </>
         ) : (
-          /* =========================
-             PROFESSORS
-          ========================= */
-
           <section className="professor-page">
             <div className="page-header">
               <div>
-                <span className="section-label">
-                  SCHOOL DIRECTORY
-                </span>
-
-                <h2>Our Professors</h2>
-
+                <p className="eyebrow">FACULTY DIRECTORY</p>
+                <h1>Professors</h1>
                 <p>
-                  View the professors and faculty members
-                  from different courses.
-                </p>
-              </div>
-            </div>
-
-            <div className="professor-intro">
-              <div className="professor-intro-icon">
-                👨‍🏫
-              </div>
-
-              <div>
-                <h3>Faculty Directory</h3>
-
-                <p>
-                  Meet the faculty members supporting our
-                  students across different academic programs.
+                  View the professors associated with each academic program.
                 </p>
               </div>
             </div>
 
             <div className="professor-grid">
               {professors.map((professor) => (
-                <div
-                  className="professor-card"
-                  key={professor.id}
-                >
-                  <div className="professor-top">
-                    <div className="professor-avatar">
-                      {getInitials(professor.name)}
-                    </div>
+                <article className="professor-card" key={professor.id}>
+                  <div className="professor-avatar">
+                    {getInitials(professor.name)}
+                  </div>
 
-                    <span className="course-badge">
-                      {professor.courses}
+                  <div className="professor-info">
+                    <span className="professor-course">
+                      {professor.course}
                     </span>
+
+                    <h3>{professor.name}</h3>
+
+                    <p>{professor.department}</p>
+
+                    <a href={`mailto:${professor.email}`}>
+                      ✉ {professor.email}
+                    </a>
                   </div>
-
-                  <h3>{professor.name}</h3>
-
-                  <p className="professor-department">
-                    {professor.department}
-                  </p>
-
-                  <div className="professor-email">
-                    <span>✉</span>
-                    {professor.email}
-                  </div>
-
-                  <div className="professor-course">
-                    <span>🎓</span>
-                    {professor.courses}
-                  </div>
-                </div>
+                </article>
               ))}
             </div>
           </section>
         )}
       </main>
 
-      {/* =========================
-          ADD / EDIT MODAL
-      ========================= */}
-
-      {modalOpen && user.role === "admin" && (
+      {detailsStudent && (
         <div
           className="modal-overlay"
-          onClick={() => setModalOpen(false)}
+          onClick={() => setDetailsStudent(null)}
         >
           <div
-            className="modal"
-            onClick={(e) => e.stopPropagation()}
+            className="details-modal"
+            onClick={(event) => event.stopPropagation()}
           >
-            <div className="modal-header">
-              <div>
-                <span className="section-label">
-                  {editingStudent ? "UPDATE" : "NEW ENTRY"}
-                </span>
+            <button
+              className="modal-close"
+              onClick={() => setDetailsStudent(null)}
+            >
+              ×
+            </button>
 
-                <h2>
-                  {editingStudent
-                    ? "Edit Student"
-                    : "Add Student"}
-                </h2>
+            <div className="profile-header">
+              <Avatar student={detailsStudent} size="profile" />
+
+              <div>
+                <span className="profile-course">
+                  {detailsStudent.course}
+                </span>
+                <h2>{detailsStudent.name}</h2>
+                <p>Student Academic Profile</p>
+              </div>
+            </div>
+
+            <div className="overall-card">
+              <div>
+                <span>Overall Average</span>
+                <small>
+                  Based on {detailsStudent.subjects.length} subject
+                  {detailsStudent.subjects.length !== 1 ? "s" : ""}
+                </small>
               </div>
 
-              <button
-                className="close-button"
-                onClick={() => setModalOpen(false)}
-              >
-                ×
-              </button>
+              <strong>
+                {formatGrade(
+                  calculateAverage(detailsStudent.subjects)
+                )}
+              </strong>
+            </div>
+
+            {detailsStudent.subjects.length > 0 ? (
+              <>
+                <div className="modal-section-title">
+                  <div>
+                    <h3>Subject Breakdown</h3>
+                    <p>Individual subject grades used to calculate the average.</p>
+                  </div>
+                </div>
+
+                <div className="subject-list">
+                  {detailsStudent.subjects.map((subject, index) => (
+                    <div className="subject-row" key={`${subject.name}-${index}`}>
+                      <div className="subject-number">
+                        {index + 1}
+                      </div>
+
+                      <div className="subject-name">
+                        <strong>{subject.name}</strong>
+                        <span>Subject Grade</span>
+                      </div>
+
+                      <strong className="subject-grade">
+                        {formatGrade(subject.grade)}
+                      </strong>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="calculation-box">
+                  <span>CALCULATION</span>
+
+                  <p>
+                    (
+                    {detailsStudent.subjects
+                      .map((subject) => formatGrade(subject.grade))
+                      .join(" + ")}
+                    ) ÷ {detailsStudent.subjects.length} ={" "}
+                    <strong>
+                      {formatGrade(
+                        calculateAverage(detailsStudent.subjects)
+                      )}
+                    </strong>
+                  </p>
+                </div>
+              </>
+            ) : (
+              <div className="legacy-message">
+                <div>ℹ️</div>
+                <div>
+                  <strong>Subject breakdown unavailable</strong>
+                  <p>
+                    This student came from an older version of the system
+                    where the overall grade was entered directly. An
+                    administrator can edit the student and add subjects.
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {modalOpen && (
+        <div className="modal-overlay" onClick={closeStudentModal}>
+          <div
+            className="student-form-modal"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <button className="modal-close" onClick={closeStudentModal}>
+              ×
+            </button>
+
+            <div className="modal-heading">
+              <p className="eyebrow">
+                {editingStudent ? "EDIT STUDENT" : "NEW STUDENT"}
+              </p>
+
+              <h2>
+                {editingStudent
+                  ? "Update Student Profile"
+                  : "Add Student"}
+              </h2>
+
+              <p>
+                Add the student's subjects and grades. The overall average
+                will be calculated automatically.
+              </p>
             </div>
 
             <form onSubmit={handleSaveStudent}>
-              <label>Student Name</label>
+              <div className="form-grid">
+                <div className="form-group">
+                  <label>Student Name</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Juan Dela Cruz"
+                    value={studentForm.name}
+                    onChange={(event) =>
+                      setStudentForm({
+                        ...studentForm,
+                        name: event.target.value,
+                      })
+                    }
+                  />
+                </div>
 
-              <input
-                type="text"
-                placeholder="Enter student name"
-                value={studentForm.name}
-                onChange={(e) =>
-                  setStudentForm({
-                    ...studentForm,
-                    name: e.target.value,
-                  })
-                }
-              />
+                <div className="form-group">
+                  <label>Course</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. BSIT"
+                    value={studentForm.course}
+                    onChange={(event) =>
+                      setStudentForm({
+                        ...studentForm,
+                        course: event.target.value,
+                      })
+                    }
+                  />
+                </div>
+              </div>
 
-              <label>Course</label>
+              <div className="photo-upload">
+                <div className="photo-preview">
+                  {studentForm.photo ? (
+                    <img
+                      src={studentForm.photo}
+                      alt="Student preview"
+                    />
+                  ) : (
+                    <span>
+                      {getInitials(studentForm.name) || "?"}
+                    </span>
+                  )}
+                </div>
 
-              <input
-                type="text"
-                placeholder="e.g. BSIT"
-                value={studentForm.course}
-                onChange={(e) =>
-                  setStudentForm({
-                    ...studentForm,
-                    course: e.target.value,
-                  })
-                }
-              />
+                <div>
+                  <label className="upload-label">
+                    Student Photo
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handlePhotoChange}
+                    />
+                  </label>
 
-              <label>Overall Grade</label>
+                  <small>
+                    JPG or PNG. The image will automatically be resized.
+                  </small>
+                </div>
+              </div>
 
-              <input
-                type="number"
-                min="0"
-                max="100"
-                step="0.01"
-                placeholder="Enter grade"
-                value={studentForm.grade}
-                onChange={(e) =>
-                  setStudentForm({
-                    ...studentForm,
-                    grade: e.target.value,
-                  })
-                }
-              />
+              <div className="subjects-heading">
+                <div>
+                  <h3>Subject Grades</h3>
+                  <p>
+                    Add every subject that should be included in the overall
+                    average.
+                  </p>
+                </div>
 
-              <div className="modal-actions">
+                <button
+                  type="button"
+                  className="add-subject-button"
+                  onClick={addSubject}
+                >
+                  ＋ Add Subject
+                </button>
+              </div>
+
+              <div className="subjects-form">
+                {studentForm.subjects.map((subject, index) => (
+                  <div className="subject-input-row" key={index}>
+                    <div className="subject-index">
+                      {index + 1}
+                    </div>
+
+                    <input
+                      type="text"
+                      placeholder="Subject name"
+                      value={subject.name}
+                      onChange={(event) =>
+                        updateSubject(
+                          index,
+                          "name",
+                          event.target.value
+                        )
+                      }
+                    />
+
+                    <input
+                      className="grade-input"
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="0.01"
+                      placeholder="Grade"
+                      value={subject.grade}
+                      onChange={(event) =>
+                        updateSubject(
+                          index,
+                          "grade",
+                          event.target.value
+                        )
+                      }
+                    />
+
+                    <button
+                      type="button"
+                      className="remove-subject"
+                      onClick={() => removeSubject(index)}
+                      disabled={studentForm.subjects.length === 1}
+                      title="Remove subject"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              <div className="live-average">
+                <span>Calculated Overall Average</span>
+                <strong>
+                  {formatGrade(
+                    calculateAverage(studentForm.subjects)
+                  )}
+                </strong>
+              </div>
+
+              <div className="form-actions">
                 <button
                   type="button"
                   className="cancel-button"
-                  onClick={() => setModalOpen(false)}
+                  onClick={closeStudentModal}
                 >
                   Cancel
                 </button>
 
-                <button
-                  type="submit"
-                  className="primary-button"
-                >
-                  {editingStudent
-                    ? "Save Changes"
-                    : "Add Student"}
+                <button type="submit" className="primary-button">
+                  {editingStudent ? "Save Changes" : "Add Student"}
                 </button>
               </div>
             </form>
@@ -1036,101 +1355,4 @@ export default function App() {
   );
 }
 
-/* =========================
-   PODIUM CARD
-========================= */
-
-function PodiumCard({ student, position }) {
-  const positionClass =
-    position === 1
-      ? "first"
-      : position === 2
-      ? "second"
-      : "third";
-
-  const medal =
-    position === 1
-      ? "🥇"
-      : position === 2
-      ? "🥈"
-      : "🥉";
-
-  return (
-    <div className={`podium-card ${positionClass}`}>
-      <div className="medal">{medal}</div>
-
-      <div className="podium-avatar">
-        {getInitials(student.name)}
-      </div>
-
-      <h3>{student.name}</h3>
-
-      <span className="podium-course">
-        {student.course}
-      </span>
-
-      <strong className="podium-grade">
-        {formatGrade(student.grade)}
-      </strong>
-
-      <span className="podium-label">
-        Overall Grade
-      </span>
-
-      <div className="rank-number">
-        #{position}
-      </div>
-    </div>
-  );
-}
-
-/* =========================
-   RANKING ROW
-========================= */
-
-function RankingRow({
-  student,
-  user,
-  onEdit,
-  onDelete,
-}) {
-  return (
-    <div className="ranking-row">
-      <div className="rank-number-small">
-        #{student.rank}
-      </div>
-
-      <div className="student-avatar">
-        {getInitials(student.name)}
-      </div>
-
-      <div className="student-info">
-        <strong>{student.name}</strong>
-        <span>{student.course}</span>
-      </div>
-
-      <div className="grade-area">
-        <strong>{formatGrade(student.grade)}</strong>
-        <span>Overall</span>
-      </div>
-
-      {user.role === "admin" && (
-        <div className="row-actions">
-          <button
-            className="edit-button"
-            onClick={() => onEdit(student)}
-          >
-            Edit
-          </button>
-
-          <button
-            className="delete-button"
-            onClick={() => onDelete(student.id)}
-          >
-            Delete
-          </button>
-        </div>
-      )}
-    </div>
-  );
-}
+export default App;
